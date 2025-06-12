@@ -45,7 +45,7 @@ is a tab-delimited file with 4 fields: chromosome, start, end, and gene/locus na
 ```txt
 chr12	120291825	120291842	RNU4-2
 ```
-A list of constraint regions of 4 RNU genes (RNU2-2, RNU4-2, RNU5A-1, and RNU5B-1) is provided in the RNUscanner examples folder.
+A list of constraint regions of 4 RNU genes (RNU2-2, RNU4-2, RNU5A-1, and RNU5B-1) is provided in the RNUscanner `example_data/RNU-loci.bed` file .
 
 * **BAM_LIST_FILE**
 is a text file lists multiple `/path/to/sample.bam` paths, one BAM file path per line. Assuming that all of the desired BAM files are in the `/path/to/` directory (or its subdirectories), users could use this line of code to create a list of BAM files' paths:
@@ -73,16 +73,16 @@ is a list of known variants in VCF format to annotate detected variants. Annotat
 chr12	120291839	rs2499959771	T	TA	.	PASS	GENE=RNU4-2;SIGNIFICANCE=Pathogenic
 chr15	65304715	.	C	G	.	PASS	GENE=RNU5B-1;SIGNIFICANCE=LikelyPathogenic
 ```
-It is encouraged to keep the VCF information and header lines as the same. Information of chromosomes which their variants are added to the VCF should be added to the VCF information line (e.g. add `##contig=<ID=chr11,length=135086622,dbSNP_version=157>` if putting RNU2-2 variants in). For a complete list of clinical RNU genes' variants, see RNUscanner examples folder.
+It is encouraged to keep the VCF information and header lines as the same. Information of chromosomes which their variants are added to the VCF should be added to the VCF information line (e.g. add `##contig=<ID=chr11,length=135086622,dbSNP_version=157>` if putting RNU2-2 variants in). For a complete list of clinical RNU genes' variants, users could use RNUscanner `example_data/RNU-clinical-variants.vcf` file.
 
 * **OUTPUT_DIR**
 is the directory name where outputs will be saved, with the `RUNscanner_out` as its default. The directory will be created if it doesn't exist.
 
 * **SAMTOOLS**
-is the path to `samtools` executable file, otherwise it will be assumed that `samtools` is in the PATH (requires `samtools` version 1.14 and above).
+is the path to `samtools` executable file, otherwise it will be assumed that `samtools` is in the PATH (requires `samtools` version 1.14+).
 
 * **BCFTOOLS**
-is the path to `bcftools` executable file, otherwise it will be assumed that `bcftools` is in the PATH (requires `bcftools` version 1.19 and above).
+is the path to `bcftools` executable file, otherwise it will be assumed that `bcftools` is in the PATH (requires `bcftools` version 1.19+).
 
 ## 📜 Citation
 
