@@ -1,5 +1,5 @@
 # RNUscanner
-A tool for mass screening RNU genes for any possible variants. These small nuclear RNA genes have been discovered to cause neurodevelopmental disorders but they are not covered in exome enrichments. However, there is a chance of off-target reads which RNUscanner captures by getting BAM files and returning any mismatches, even the low quality ones. It outputs per-sample VCF files and optionally annotates known variants.
+A tool for RNU genes screening for any possible variants. Small nuclear RNA genes' mutations cause neurodevelopmental disorders, but they are not covered in exome enrichments. However, there is a chance of off-target reads which RNUscanner captures by getting BAM files and returning any mismatches, even the low quality ones, and outputs per-sample VCF files and optionally annotates known variants.
 
 *The goal is to benefit the most from a huge amount of exome data, as many genetic patients have nothing availabe except an exome data, awaiting for diagnosis.*
 
@@ -30,7 +30,7 @@ Then run RNUscanner:
 ```
 It scans dozens of exomes per minute on a regular machine.
 
-To quickly screen results for samples having known pathogenic variants (assuming that VCF annotation is enabled, explained below) users could then run:
+To quickly screen results for samples harbouring known pathogenic variants (assuming that VCF annotation is enabled; explained below) users could then run:
 
 ```bash
 grep -i "Pathogenic" -r OUTPUT_DIR/*.vcf
@@ -54,7 +54,7 @@ find /path/to/ -type f -iname *.bam > BAM_LIST_FILE.txt
 ```
 
 * **REFERENCE_FASTA**
-is the `*.fasta` (or `*.fa`) file that has been used for raw sequence reads alignment (the reference assembly of BAM files). The reference file must be indexed.
+is the `*.fasta` (or `*.fa`) file that has been used for raw sequence reads alignment (i.e. the reference assembly of BAM files). The reference file must be indexed.
 
 ### Optional
 * **VARIANT_VCF**
