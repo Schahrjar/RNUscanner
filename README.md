@@ -1,5 +1,5 @@
 # RNUscanner
-A tool for mass screening RNU genes for significant variants. These RNA genes have been discovered to cause neurodevelopmental disorders but they are not covered in exome sequencings. However, there is a chance of off-target reads which RNUscanner captures by getting BAM files and returning any mismatches, even the low quality ones. It outputs per-sample VCF files and optionally annotates known variants.
+A tool for mass screening RNU genes for any possible variants. These small nuclear RNA genes have been discovered to cause neurodevelopmental disorders but they are not covered in exome enrichments. However, there is a chance of off-target reads which RNUscanner captures by getting BAM files and returning any mismatches, even the low quality ones. It outputs per-sample VCF files and optionally annotates known variants.
 
 *The goal is to benefit the most from a huge amount of exome data, as many genetic patients have nothing availabe except an exome data, awaiting for diagnosis.*
 
@@ -28,7 +28,9 @@ Then run RNUscanner:
   [--samtools-path <SAMTOOLS>] \
   [--bcftools-path <BCFTOOLS>]
 ```
-It scans dozens of exomes per minute. To quickly screen results for samples having known pathogenic variants (assuming that VCF annotation is enabled, explained below) users could then run:
+It scans dozens of exomes per minute on a regular machine.
+
+To quickly screen results for samples having known pathogenic variants (assuming that VCF annotation is enabled, explained below) users could then run:
 
 ```bash
 grep -i "Pathogenic" -r OUTPUT_DIR/*.vcf
@@ -37,21 +39,27 @@ grep -i "Pathogenic" -r OUTPUT_DIR/*.vcf
 Good luck with your screening!
 
 ## 🗂️ Inputs
+### Mandatory
 * **BED_FILE**
-is a tab-delimited file with 4 fields: chromosome, start, end, and gene/locus name. BED file doesn't have header line. Genome coordinates should be in consistance with the BAM file (and the reference genome, below). Example locus:
+is a tab-delimited file with 4 fields: chromosome, start, end, and gene/locus name. BED file doesn't have header line. Genome coordinates should be in consistance with the BAM file (and the reference genome, see below). Example locus:
 ```txt
 chr12	120291825	120291842	RNU4-2
 ```
 A list of constraint regions of 4 RNU genes (RNU2-2, RNU4-2, RNU5A-1, and RNU5B-1) is provided in the RNUscanner examples folder.
 
 * **BAM_LIST_FILE**
-is a text file lists multiple ```/path/to/sample.bam```, one BAM file path per line.
+is a text file lists multiple `/path/to/sample.bam` paths, one BAM file path per line. Assuming that all of the desired BAM files are in the `/path/to/` directory (or its subdirectories), users could use this line of code to create a list of BAM files' paths:
+```bash
+find /path/to/ -type f -iname *.bam > BAM_LIST_FILE.txt
+```
 
 * **REFERENCE_FASTA**
-is the ```GENOME.fasta``` (or ```GENOME.fa```) file that has been used for raw sequence reads alignment (the reference assembly of BAM files). The reference file must be indexed.
+is the `*.fasta` (or `*.fa`) file that has been used for raw sequence reads alignment (the reference assembly of BAM files). The reference file must be indexed.
 
-* **VARIANT_VCF** (optional) is a list of known variants in VCF format to annotate detected variants. Example VCF:
-```txt
+### Optional
+* **VARIANT_VCF**
+is a list of known variants in VCF format to annotate detected variants. Annotation is enabled if this VCF file is provided (default is disabled). Example VCF:
+```vcf
 ##fileformat=VCFv4.2
 ##fileDate=20250611
 ##reference=hg38
@@ -65,16 +73,16 @@ is the ```GENOME.fasta``` (or ```GENOME.fa```) file that has been used for raw s
 chr12	120291839	rs2499959771	T	TA	.	PASS	GENE=RNU4-2;SIGNIFICANCE=Pathogenic
 chr15	65304715	.	C	G	.	PASS	GENE=RNU5B-1;SIGNIFICANCE=LikelyPathogenic
 ```
-It is encouraged to keep the VCF information and header lines as the same. Chromosomes which their variants are added to the VCF should be added to the information (e.g ```##contig=<ID=chr11,length=135086622,dbSNP_version=157>``` if adding RNU2-2 variants). For a complete list of clinical RNU genes' variants, see RNUscanner examples folder.
+It is encouraged to keep the VCF information and header lines as the same. Information of chromosomes which their variants are added to the VCF should be added to the VCF information line (e.g. add `##contig=<ID=chr11,length=135086622,dbSNP_version=157>` if putting RNU2-2 variants in). For a complete list of clinical RNU genes' variants, see RNUscanner examples folder.
 
 * **OUTPUT_DIR**
-(optional) is the directory name where outputs are saved. This will be created if doesn't exits.
+is the directory name where outputs will be saved, with the `RUNscanner_out` as its default. The directory will be created if it doesn't exist.
 
 * **SAMTOOLS**
-(optional) is the path to `samtools` executable file. Old versions may not work.
+is the path to `samtools` executable file, otherwise it will be assumed that `samtools` is in the PATH (requires `samtools` version 1.14 and above).
 
 * **BCFTOOLS**
-(optional) is the path to `bcftools` executable file. Old versions may not work.
+is the path to `bcftools` executable file, otherwise it will be assumed that `bcftools` is in the PATH (requires `bcftools` version 1.19 and above).
 
 ## 📜 Citation
 
