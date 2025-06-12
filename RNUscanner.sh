@@ -1,274 +1,329 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
 set -euo pipefail
 
-# By Shahryar Alavi
-# UCL Institute of Neurology
-# 2025-06-07
-# s.alavi@ucl.ac.uk
+# Shahryar Alavi
+# UCL Institute of Neurology, London, UK
+# 2025-06-11
 
-# This uses samtools to report any mismatches between sequence reads and the reference genome on desired regions.
-# Useful for off-target regions of exome data, mainly developed for screening datasets for variants of RNU genes.
-# A colourful log file will also be created to make you happy!
+# Initialize variables
+BED_FILE=""
+BAM_LIST=""
+REFERENCE_FASTA=""
+VARIANT_ANNOTATION_VCF=""
+OUTPUT_DIR="RNUscanner_out"
+SAMTOOLS_PATH="samtools"
+BCFTOOLS_PATH="bcftools"
+LOG_FILE="" # For logging output
 
-# -------------------------------
-# Usage Info
-# -------------------------------
-
-usage() {
-  echo ""
-  echo -e "RNUscanner\tversion 1.0\t2025-06-07"
-  echo ""
-  echo "Usage: $0 \\"
-  echo "          --gene-list BED_FILE \\"
-  echo "          --bam-list BAM_LIST_FILE \\"
-  echo "          --output-dir OUTPUT_DIR \\"
-  echo "          --reference REFERENCE_FASTA \\"
-  echo "          [--variant-list VARIANT_TSV]"
-  echo ""
-  echo "Arguments:"
-  echo "  --gene-list      BED file with regions of interest"
-  echo "                   /path/to/tab-delimited.bed with 4 fields: chromosome, start, end, gene/locus name; no header line in the BED file"
-  echo ""
-  echo "  --bam-list       BAM files' paths listed in a text file"
-  echo "                   a text file contains /path/to/sample.bam, one per line"
-  echo ""
-  echo "  --output-dir     Directory to output mpileup and VCF results"
-  echo "                   will be created if doesn't exist"
-  echo ""
-  echo "  --reference      FASTA file of the reference genome"
-  echo "                   /path/to/reference.fasta used for BAM files, and is indexed"
-  echo ""
-  echo "  --variant-list   (optional) TSV file with variants of interest"
-  echo "                   /path/to/variants.tsv with 6 tab-delimited fields: Chromosome, Position, Reference, Alternate, dbSNP, Significance; the first line is header"
-  echo "                   dbSNP examle: rs2499959771 (put a single dot (.) if no rsID); Significance examples: Pathogenic or Benign"
-  echo ""
-  echo "Notes:"
-  echo "  - Uses samtools (must be in PATH) to scan defined regions (e.g. RNU genes) for mismatches."
-  echo "  - Suitable for variant screening of very low-depth/off-target (e.g. RNU4-2) or segmental duplication (e.g. SMN1) regions."
-  echo "  - Output VCFs are not realistic, but simplifies interpretation. GT is always infered as 0/1 in this version."
-  echo "  - If the variant TSV file is provided, known variants will be annotated. Otherwise variants' singnificance are annotated as Unknown."
-  echo "  - Repository: https://github.com/Schahrjar by Shahryar Alavi, s.alavi@ucl.ac.uk"
-  echo ""
-  echo "  MIT License"
-  echo "  Copyright (c) 2025 Shahryar Alavi"
-  echo "  Cite this: paper"
-  echo ""
-  exit 1
-}
-
-# -------------------------------
-# Parse Arguments
-# -------------------------------
-
-variant_tsv=""
-if [[ $# -lt 8 ]]; then
-  usage
-fi
-
+# Parse named arguments
 while [[ $# -gt 0 ]]; do
-  key="$1"
-  case $key in
-    --gene-list)
-      bed_file="$2"
-      shift 2
-      ;;
-    --bam-list)
-      listBAMdirs="$2"
-      shift 2
-      ;;
-    --output-dir)
-      output_dir="$2"
-      shift 2
-      ;;
-    --reference)
-      reference_fasta="$2"
-      shift 2
-      ;;
-    --variant-list)
-      variant_tsv="$2"
-      shift 2
-      ;;
-    *)
-      echo "❌ Unknown argument: $1"
-      usage
-      ;;
-  esac
+    key="$1"
+    case $key in
+        --gene-list)
+            BED_FILE="$2"
+            shift 2
+            ;;
+        --bam-list)
+            BAM_LIST="$2"
+            shift 2
+            ;;
+        --reference)
+            REFERENCE_FASTA="$2"
+            shift 2
+            ;;
+        --variant-annotation)
+            VARIANT_ANNOTATION_VCF="$2"
+            shift 2
+            ;;
+        --output-dir)
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --samtools-path)
+            SAMTOOLS_PATH="$2"
+            shift 2
+            ;;
+        --bcftools-path)
+            BCFTOOLS_PATH="$2"
+            shift 2
+            ;;
+        --help)
+            echo ""
+            echo "Usage: $0 --gene-list <BED_FILE> --bam-list <BAM_LIST> --reference <REFERENCE_FASTA> [--variant-annotation <VARIANT_VCF>] [--output-dir <OUTPUT_DIR>] [--samtools-path <SAMTOOLS>] [--bcftools-path <BCFTOOLS>]"
+            echo -e "\nRNUscanner\tversion 1.00\t2025-06-11"
+            echo ""
+            echo "Arguments:"
+            echo "  --gene-list          BED file with regions of interest (e.g., RNU-loci.bed)"
+            echo "                       (Format: chromosome, start, end, gene/locus name; no header)"
+            echo ""
+            echo "  --bam-list           Text file listing paths to BAM files, one per line."
+            echo ""
+            echo "  --reference          FASTA file of the reference genome, used for BAM files, and must be indexed (.fai required)."
+            echo ""
+            echo "  --variant-annotation (ptional) VCF file containing known variants for annotation. (default: VCF is not provided and annotation is disabled)"
+            echo "                       (Example: VCF with INFO fields for GENE and SIGNIFICANCE, and populated ID field)"
+            echo "                       If provided, RNUscanner will automatically bgzip-compress and tabix-index this file if needed."
+            echo ""
+            echo "  --output-dir         (optional) Directory to store output VCFs and logs (default: RNUscanner_out). Will be created if it doesn't exist."
+            echo ""
+            echo "  --samtools-path      (optional) Path to samtools executable (default: samtools)."
+            echo ""
+            echo "  --bcftools-path      (optional) Path to bcftools executable (default: bcftools)."
+            echo ""
+            echo "Notes:"
+            echo "  - Calls variants using bcftools."
+            echo "  - Optionally annotates variants if an input VCF is provided."
+            echo "  - Creates per-sample VCF files if variants are found in the target regions."
+            echo "  - This script is suitable for variant screening in low-depth or segmental duplication regions, which their variants are missed by usual variant callings."
+            echo ""
+            echo "  MIT License | Copyright (c) 2025 Shahryar Alavi"
+            echo ""
+            echo "  Repository: https://github.com/Schahrjar/RNUscanner"
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo "❌ Unknown option: $1"
+            exit 1
+            ;;
+    esac
 done
 
-# -------------------------------
-# Create output directories
-# -------------------------------
-
-log_file="${output_dir}/screening.log"
-vcf_dir="${output_dir}/vcf"
-mpileup_dir="${output_dir}/mpileup"
-
-mkdir -p "$output_dir" "$vcf_dir" "$mpileup_dir"
-
-# -------------------------------
-# Prepare Variant Lookup File
-# -------------------------------
-
-variant_lookup_file=""
-has_variant_data="false"
-
-if [[ -n "$variant_tsv" ]]; then
-  variant_lookup_file=$(mktemp)
-  tail -n +2 "$variant_tsv" > "$variant_lookup_file"
-  has_variant_data="true"
+# --- Argument Validation ---
+# Check for required core arguments
+if [[ -z "$BED_FILE" || -z "$BAM_LIST" || -z "$REFERENCE_FASTA" ]]; then
+    echo "❌ Missing required argument(s): --gene-list, --bam-list, and --reference are mandatory. Use --help for usage."
+    exit 1
 fi
 
-# -------------------------------
-# Initialize Logging
-# -------------------------------
+# Validate files
+[[ ! -f "$BED_FILE" ]] && { echo "❌ BED file not found: $BED_FILE"; exit 1; }
+[[ ! -f "$BAM_LIST" ]] && { echo "❌ BAM list not found: $BAM_LIST"; exit 1; }
+[[ ! -f "$REFERENCE_FASTA" ]] && { echo "❌ Reference FASTA not found: $REFERENCE_FASTA"; exit 1; }
+[[ ! -f "${REFERENCE_FASTA}.fai" ]] && { echo "❌ Reference FASTA index (${REFERENCE_FASTA}.fai) not found. Please index your reference FASTA with '$SAMTOOLS_PATH faidx ${REFERENCE_FASTA}' or '$BCFTOOLS_PATH faidx ${REFERENCE_FASTA}'."; exit 1; }
 
-echo -e "\n🕒 Run started at $(date)" | tee "$log_file"
+# --- Tool Validation ---
+command -v "$SAMTOOLS_PATH" >/dev/null 2>&1 || { echo "❌ samtools not found or not executable at: $SAMTOOLS_PATH"; exit 1; }
+command -v "$BCFTOOLS_PATH" >/dev/null 2>&1 || { echo "❌ bcftools not found or not executable at: $BCFTOOLS_PATH"; exit 1; }
 
-# -------------------------------
-# Read BED and BAM Lists
-# -------------------------------
+# Robust bcftools version check
+# Extract major and minor version numbers
+read -r BCFTOOLS_MAJOR_VER BCFTOOLS_MINOR_VER < <("$BCFTOOLS_PATH" --version | head -n1 | awk '{split($2, v, "."); print v[1], v[2]}')
 
-mapfile -t regions < <(awk '{print $1":"$2"-"$3"#"$4}' "$bed_file")
-mapfile -t bam_files < <(grep -v '^\s*$' "$listBAMdirs" | sed 's/\r//' | sed 's/[[:space:]]*$//')
+if (( BCFTOOLS_MAJOR_VER < 1 )) || \
+   (( BCFTOOLS_MAJOR_VER == 1 && BCFTOOLS_MINOR_VER < 19 )); then
+    echo "❌ Your bcftools version ($BCFTOOLS_MAJOR_VER.$BCFTOOLS_MINOR_VER) is too old. Please update to 1.19 or higher for --trim-unseen-allele and other features."
+    exit 1
+fi
 
-# -------------------------------
-# Main Processing Loop
-# -------------------------------
 
-for bam_path in "${bam_files[@]}"; do
-  sample_name=$(basename "$bam_path" .bam)
-  echo "🔄 Processing sample $sample_name" | tee -a "$log_file"
-  vcf_file="${vcf_dir}/${sample_name}.vcf"
-  temp_vcf=$(mktemp)
-  sample_found_variant=false
+# --- Setup Output and Logging ---
+mkdir -p "$OUTPUT_DIR"
+LOG_FILE="${OUTPUT_DIR}/RNUscanner.log"
+exec > >(tee -a "$LOG_FILE") 2>&1 # Redirect all stdout and stderr to log file and console
+echo "--- RNUscanner Log - $(date) ---"
+echo "Output directory: $OUTPUT_DIR"
+echo "Reference FASTA: $REFERENCE_FASTA"
 
-  for region_gene in "${regions[@]}"; do
-    region="${region_gene%%#*}"
-    gene="${region_gene##*#}"
-    mpileup_txt="${mpileup_dir}/${sample_name}_${gene}.mpileup.txt"
+# --- Prepare Temporary Directory ---
+TEMP_DIR=$(mktemp -d "${OUTPUT_DIR}/temp.XXXXXXXXXX") # Create temp dir inside output dir
+trap 'rm -rf "$TEMP_DIR"' EXIT # Clean up temp dir on exit
 
-    if ! samtools mpileup -f "$reference_fasta" -r "$region" "$bam_path" 2>/dev/null > "$mpileup_txt"; then
-      continue
+# --- Process Optional Annotation VCF ---
+ANNOTATION_ENABLED="false"
+if [[ -n "$VARIANT_ANNOTATION_VCF" ]]; then # Check if the variable is non-empty
+    ANNOTATION_ENABLED="true"
+    original_annot_vcf_path="$VARIANT_ANNOTATION_VCF" # Store original path for reference
+
+    # Check if already bgzipped (ends with .vcf.gz)
+    if [[ "$original_annot_vcf_path" == *.vcf.gz ]]; then
+        echo "Info: Annotation VCF is already bgzip-compressed: $original_annot_vcf_path"
+        
+        # Check for index: prioritize .tbi, then .csi
+        if [[ -f "${original_annot_vcf_path}.tbi" ]]; then
+            echo "Info: Tabix index (${original_annot_vcf_path}.tbi) found."
+        elif [[ -f "${original_annot_vcf_path}.csi" ]]; then
+            echo "Info: CSI index (${original_annot_vcf_path}.csi) found."
+        else
+            # No index found, create one (bcftools index defaults to .tbi for VCFs)
+            echo "Info: No index found for "$original_annot_vcf_path". Creating index..."
+            "$BCFTOOLS_PATH" index -f "$original_annot_vcf_path" || { echo "❌ Failed to index "$original_annot_vcf_path". Exiting."; exit 1; }
+        fi
+        # If already .vcf.gz and indexed, VARIANT_ANNOTATION_VCF remains as is.
+    elif [[ "$original_annot_vcf_path" == *.vcf ]]; then
+        # Plain VCF, needs compression and indexing
+        new_annot_vcf_gz="${original_annot_vcf_path}.gz"
+        echo "Info: Annotation VCF is not bgzip-compressed. Compressing to "$new_annot_vcf_gz"..."
+        # Use bcftools view -Oz for compression
+        "$BCFTOOLS_PATH" view "$original_annot_vcf_path" -Oz -o "$new_annot_vcf_gz" || { echo "❌ Failed to compress "$original_annot_vcf_path" with bcftools view -Oz. Exiting."; exit 1; }
+        
+        VARIANT_ANNOTATION_VCF="$new_annot_vcf_gz" # Update the variable for subsequent use in the pipeline
+
+        echo "Info: Creating index for "$VARIANT_ANNOTATION_VCF"..."
+        "$BCFTOOLS_PATH" index -f "$VARIANT_ANNOTATION_VCF" || { echo "❌ Failed to index "$VARIANT_ANNOTATION_VCF". Exiting."; exit 1; }
+    else
+        # Not .vcf or .vcf.gz, warn and disable annotation
+        echo "⚠️ Warning: Invalid format for --variant-annotation ("$original_annot_vcf_path"). Expected .vcf or .vcf.gz. Annotation disabled for this run."
+        ANNOTATION_ENABLED="false"
+    fi
+fi
+
+if [[ "$ANNOTATION_ENABLED" == "true" ]]; then
+    echo "Variant Annotation VCF: "$VARIANT_ANNOTATION_VCF" (Optional annotation enabled)"
+else
+    echo "No Variant Annotation VCF provided, or it was in an unsupported format. Output VCFs will not be annotated with custom INFO/ID fields."
+fi
+
+# --- Main Processing Loop ---
+while read -r BAM_PATH; do
+    # Skip empty lines in BAM list
+    [[ -z "$BAM_PATH" ]] && continue
+
+    # Validate BAM file existence
+    [[ ! -f "$BAM_PATH" ]] && { echo "⚠️ BAM file not found: "$BAM_PATH" — skipping."; continue; }
+
+    # Get sample name from BAM header (more robust than basename)
+    if "$SAMTOOLS_PATH" --version | head -n 1 | grep -q "1\.[1-9][0-9]*\|[2-9]\."; then # samtools >= 1.10
+        SAMPLE=$("$SAMTOOLS_PATH" samples "$BAM_PATH" | cut -f1)
+    else # Fallback for older samtools or if 'samples' command isn't present
+        SAMPLE=$(basename "$BAM_PATH" .bam)
+        echo "Using basename to infer sample name for "$BAM_PATH". Consider updating samtools (v1.14+ recommended for 'samples' command)."
     fi
 
-    if ! grep -q '[ACGTNacgtn]' "$mpileup_txt"; then
-      rm -f "$mpileup_txt"
-      continue
+    echo "--- Processing sample: "$SAMPLE" ---"
+
+    TEMP_MPILEUP_VCF="${TEMP_DIR}/${SAMPLE}.mpileup.vcf"
+    TEMP_NORM_VCF="${TEMP_DIR}/${SAMPLE}.norm.vcf"
+    TEMP_VIEW_VCF="${TEMP_DIR}/${SAMPLE}.view.vcf"
+    TEMP_GENE_ANNOTATED_VCF="${TEMP_DIR}/${SAMPLE}.gene_annotated.vcf"
+    TEMP_GENE_ANNOTATED_VCF_GZ="${TEMP_DIR}/${SAMPLE}.gene_annotated.vcf.gz" 
+    TEMP_ANNOTATE_VCF="${TEMP_DIR}/${SAMPLE}.annotate.vcf" 
+    FINAL_VCF="${OUTPUT_DIR}/${SAMPLE}.vcf"
+
+    # Step 1: bcftools mpileup (outputs plain VCF)
+    echo "Running bcftools mpileup..."
+    if ! "$BCFTOOLS_PATH" mpileup \
+        --fasta-ref "$REFERENCE_FASTA" \
+        --regions-file "$BED_FILE" \
+        --count-orphans \
+        --min-BQ 0 \
+        -a AD,DP \
+        --threads 4 \
+        "$BAM_PATH" \
+    > "$TEMP_MPILEUP_VCF"; then
+        echo "❌ bcftools mpileup failed for sample "$SAMPLE" (BAM: "$BAM_PATH"). This often indicates an issue with the BAM file itself (e.g., corruption, bad permissions, incomplete transfer) or the file system. Skipping this sample."
+        continue # Skip to the next BAM in the list
     fi
 
-    awk -v gene="$gene" -v sample="$sample_name" \
-        -v varfile="$variant_lookup_file" \
-        -v use_variants="$has_variant_data" \
-        -v OFS="\t" '
-    BEGIN {
-      found = 0;
-      if (use_variants == "true") {
-        while ((getline < varfile) > 0) {
-          split($0, F, "\t");
-          key = F[1] "_" F[2] "_" F[3] "_" F[4];
-          rsids[key] = F[5];
-          signs[key] = F[6];
-        }
-        close(varfile);
-      }
-    }
+    # Check if mpileup produced output, otherwise remaining steps will fail
+    if [[ ! -s "$TEMP_MPILEUP_VCF" ]]; then
+        echo "⚠️ bcftools mpileup produced no output for "$SAMPLE". This might indicate no variants in regions or a minor issue. Skipping subsequent VCF processing for this sample."
+        rm -f "$TEMP_MPILEUP_VCF" # Clean up the potentially empty/malformed file
+        continue
+    fi
 
-    function parse_bases(b, ref,   i, base, len_str, len) {
-      delete alts;
-      i = 1;
-      while (i <= length(b)) {
-        base = substr(b, i, 1);
-        if (base == "+" || base == "-") {
-          len_str = "";
-          i++;
-          while (i <= length(b) && substr(b, i, 1) ~ /[0-9]/) {
-            len_str = len_str substr(b, i, 1);
-            i++;
-          }
-          len = len_str + 0;
-          i += len;
-        } else if (base ~ /[.,]/) {
-          alts[toupper(ref)]++;
-          i++;
-        } else if (base ~ /[ACGTNacgtn]/) {
-          alts[toupper(base)]++;
-          i++;
-        } else if (base == "*" || base == "#") {
-          alts["<DEL>"]++;
-          i++;
-        } else {
-          i++;
-        }
-      }
-      delete alts[toupper(ref)];
-    }
+    # Step 2: bcftools norm (outputs plain VCF)
+    echo "Running bcftools norm..."
+    # Add error handling for bcftools norm
+    if ! "$BCFTOOLS_PATH" norm -Ov -f "$REFERENCE_FASTA" "$TEMP_MPILEUP_VCF" \
+    > "$TEMP_NORM_VCF"; then
+        echo "❌ bcftools norm failed for sample "$SAMPLE". Skipping this sample."
+        rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" 2>/dev/null || true # Clean up
+        continue
+    fi
+    
+    # Check if norm produced output
+    if [[ ! -s "$TEMP_NORM_VCF" ]]; then
+        echo "⚠️ bcftools norm produced no output for "$SAMPLE". Skipping subsequent VCF processing for this sample."
+        rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" 2>/dev/null || true # Clean up
+        continue
+    fi
 
-    function join(arr, sep,   out, i) {
-      out = arr[1];
-      for (i = 2; i <= length(arr); i++) out = out sep arr[i];
-      return out;
-    }
+    # Step 3: bcftools view (outputs plain VCF)
+    echo "Running bcftools view..."
+    # Add error handling for bcftools view
+    if ! "$BCFTOOLS_PATH" view --trim-unseen-allele -Ov "$TEMP_NORM_VCF" \
+    > "$TEMP_VIEW_VCF"; then
+        echo "❌ bcftools view failed for sample "$SAMPLE". Skipping this sample."
+        rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" "$TEMP_VIEW_VCF" 2>/dev/null || true # Clean up
+        continue
+    fi
 
-    {
-      chrom = $1; pos = $2; ref = toupper($3); dp = $4; bases = $5;
-      split("", alt_list); split("", af_list); split("", ad_list); split("", id_list); split("", sig_list);
+    # Check if view produced output
+    if [[ ! -s "$TEMP_VIEW_VCF" ]]; then
+        echo "⚠️ bcftools view produced no output for "$SAMPLE". Skipping subsequent VCF processing for this sample."
+        rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" "$TEMP_VIEW_VCF" 2>/dev/null || true # Clean up
+        continue
+    fi
 
-      parse_bases(bases, ref);
+    # Step 4: Annotate with Gene name from BED file (unconditional for all variants in target regions)
+    echo "Annotating variants with Gene names from BED file..."
+    if ! "$BCFTOOLS_PATH" annotate \
+        -a "$BED_FILE" \
+        -c 'CHROM,FROM,TO,INFO/GENE' \
+        --header-lines <(echo '##INFO=<ID=GENE,Number=.,Type=String,Description="Gene name from the input BED file.">') \
+        -Ov "$TEMP_VIEW_VCF" \
+    > "$TEMP_GENE_ANNOTATED_VCF"; then
+        echo "❌ bcftools annotate (BED) failed for sample "$SAMPLE". Skipping this sample."
+        rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" "$TEMP_VIEW_VCF" "$TEMP_GENE_ANNOTATED_VCF" 2>/dev/null || true # Clean up
+        continue
+    fi
 
-      if (dp > 0) {
-        n = 0;
-        for (alt in alts) {
-          if (alts[alt] > 0) {
-            alt_list[++n] = alt;
-            ad_list[n] = alts[alt];
-            af_list[n] = sprintf("%.3f", alts[alt] / dp);
-            key = chrom "_" pos "_" ref "_" alt;
-            id_list[n] = (key in rsids) ? rsids[key] : ".";
-            sig_list[n] = (key in signs) ? signs[key] : "Unknown";
-          }
-        }
+    # Step 5: Compress and index the gene-annotated VCF
+    echo "Compressing and indexing gene-annotated VCF for further processing..."
+    if ! "$BCFTOOLS_PATH" view "$TEMP_GENE_ANNOTATED_VCF" -Oz -o "$TEMP_GENE_ANNOTATED_VCF_GZ"; then
+        echo "❌ Compression (bcftools view -Oz) failed for sample "$SAMPLE". Skipping this sample."
+        rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" "$TEMP_VIEW_VCF" "$TEMP_GENE_ANNOTATED_VCF" "$TEMP_GENE_ANNOTATED_VCF_GZ" 2>/dev/null || true # Clean up
+        continue
+    fi
+    if ! "$BCFTOOLS_PATH" index "$TEMP_GENE_ANNOTATED_VCF_GZ"; then
+        echo "❌ Indexing (bcftools index) failed for sample "$SAMPLE". Skipping this sample."
+        rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" "$TEMP_VIEW_VCF" "$TEMP_GENE_ANNOTATED_VCF" "$TEMP_GENE_ANNOTATED_VCF_GZ" 2>/dev/null || true # Clean up
+        continue
+    fi
 
-        if (n > 0) {
-          ad_ref = dp;
-          for (i = 1; i <= n; i++) ad_ref -= ad_list[i];
 
-          print chrom, pos, join(id_list, ","), ref, join(alt_list, ","), ".", "PASS", \
-                "GENE=" gene ";SIGNIFICANCE=" join(sig_list, ","), \
-                "GT:AD:DP:AF", "0/1:" ad_ref "," join(ad_list, ",") ":" dp ":" join(af_list, ",") >> "'"$temp_vcf"'";
-          found = 1;
-        }
-      }
-    }
-    END { exit (found == 1) ? 0 : 1 }
-    ' "$mpileup_txt" && sample_found_variant=true || rm -f "$mpileup_txt"
-  done
+    # Step 6: Conditional Annotation with VARIANT_VCF (if provided)
+    if [[ "$ANNOTATION_ENABLED" == "true" ]]; then
+        echo "Running bcftools annotate with known variants VCF..."
+        if ! "$BCFTOOLS_PATH" annotate \
+            -a "$VARIANT_ANNOTATION_VCF" \
+            -c 'ID,INFO/GENE,INFO/SIGNIFICANCE' \
+            -Ov "$TEMP_GENE_ANNOTATED_VCF_GZ" \
+        > "$TEMP_ANNOTATE_VCF"; then
+            echo "❌ bcftools annotate (known variants) failed for sample "$SAMPLE". Skipping this sample."
+            rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" "$TEMP_VIEW_VCF" "$TEMP_GENE_ANNOTATED_VCF" "$TEMP_GENE_ANNOTATED_VCF_GZ" "$TEMP_ANNOTATE_VCF" 2>/dev/null || true # Clean up
+            continue
+        fi
+        INPUT_FOR_FILTER="$TEMP_ANNOTATE_VCF"
+    else
+        INPUT_FOR_FILTER="$TEMP_GENE_ANNOTATED_VCF_GZ"
+    fi
 
-  if $sample_found_variant; then
-    {
-      echo "##fileformat=VCFv4.2"
-      echo "##INFO=<ID=GENE,Number=1,Type=String,Description=\"Gene or locus name\">"
-      echo "##INFO=<ID=SIGNIFICANCE,Number=.,Type=String,Description=\"variant significance per ALT allele\">"
-      echo "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"
-      echo "##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allele depths for ref and alt\">"
-      echo "##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read depth\">"
-      echo "##FORMAT=<ID=AF,Number=A,Type=Float,Description=\"Allele fraction (alt/DP)\">"
-      echo "##source=RNUscanner.sh"
-      echo -e "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t${sample_name}"
-      cat "$temp_vcf"
-    } > "$vcf_file"
-    echo "   ✅ Saved VCF to $vcf_file" | tee -a "$log_file"
-  else
-    echo "   ⚠️  No mismatches found in $sample_name" | tee -a "$log_file"
-  fi
+    # Step 7: bcftools filter and final output
+    echo "Running bcftools filter and writing final VCF..."
+    if ! "$BCFTOOLS_PATH" filter -e 'ALT="<*>"' -Ov "$INPUT_FOR_FILTER" \
+    > "$FINAL_VCF"; then
+        echo "❌ bcftools filter failed for sample "$SAMPLE". Skipping this sample."
+        rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" "$TEMP_VIEW_VCF" "$TEMP_GENE_ANNOTATED_VCF" "$TEMP_GENE_ANNOTATED_VCF_GZ" "$TEMP_ANNOTATE_VCF" "$FINAL_VCF" 2>/dev/null || true # Clean up
+        continue
+    fi
 
-  rm -f "$temp_vcf"
-done
+    # Clean up intermediate temporary files
+    rm -f "$TEMP_MPILEUP_VCF" "$TEMP_NORM_VCF" "$TEMP_VIEW_VCF" \
+          "$TEMP_GENE_ANNOTATED_VCF" "$TEMP_GENE_ANNOTATED_VCF_GZ" \
+          "$TEMP_ANNOTATE_VCF" 2>/dev/null || true
 
-# -------------------------------
-# Done
-# -------------------------------
+    # Check if the final VCF actually contains variants
+    if [[ -s "$FINAL_VCF" ]] && "$BCFTOOLS_PATH" query -f '%POS\n' "$FINAL_VCF" | grep -q .; then
+        echo "✅ Variants detected. Wrote: "$FINAL_VCF""
+    else
+        echo "ℹ️ No variants detected for "$SAMPLE" in target regions – deleting empty VCF."
+        rm -f "$FINAL_VCF"
+    fi
 
-echo -e "\n✅ All regions scanned for all BAMs at $(date)" | tee -a "$log_file"
+done < "$BAM_LIST"
 
-# Cleanup
-[[ -n "$variant_lookup_file" ]] && rm -f "$variant_lookup_file"
+echo "--- All samples processed successfully ---"
+echo "Log file: "$LOG_FILE""
