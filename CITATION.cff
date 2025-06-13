@@ -5,7 +5,7 @@ authors:
   given-names: Shahryar
   orcid: "https://orcid.org/0000-0002-3484-3423"
   affiliation: "UCL Institute of Neurology, London, UK"
-title: "RNUscanner"
+title: "RNUscanner: detecting variants of low-depth sequenced regions"
 version: 1.0.0
 date-released: 2025-06-11
 url: "https://github.com/Schahrjar/RNUscanner"
