@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use RNUscanner, please cite it as below."
+authors:
+- family-names: Alavi
+  given-names: Shahryar
+  orcid: "https://orcid.org/0000-0002-3484-3423"
+  affiliation: "UCL Institute of Neurology, London, UK"
+title: "RNUscanner"
+version: 1.0.0
+date-released: 2025-06-11
+url: "https://github.com/Schahrjar/RNUscanner"
+license: MIT
