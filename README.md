@@ -33,7 +33,7 @@ It scans dozens of exomes per minute on a regular machine.
 To quickly screen results for samples harbouring known pathogenic variants (assuming that VCF annotation is enabled; explained below) users could then run:
 
 ```bash
-grep -i "Pathogenic" -r OUTPUT_DIR/*.vcf
+grep -i "Pathogenic" -r RNUscanner_out/*.vcf
 ```
 
 Good luck with your screening!
@@ -76,7 +76,7 @@ chr15	65304715	.	C	G	.	PASS	GENE=RNU5B-1;SIGNIFICANCE=LikelyPathogenic
 It is encouraged to keep the VCF information and header lines as the same. Information of chromosomes which their variants are added to the VCF should be added to the VCF information line (e.g. add `##contig=<ID=chr11,length=135086622,dbSNP_version=157>` if putting RNU2-2 variants in). For a complete list of clinical RNU genes' variants, users could use RNUscanner `example_data/RNU-clinical-variants.vcf` file (based on hg38).
 
 * **OUTPUT_DIR**
-is the directory name where outputs will be saved, with the `RUNscanner_out` as its default. The directory will be created if it doesn't exist.
+is the directory name where outputs will be saved, with the `RNUscanner_out` as its default. The directory will be created if it doesn't exist.
 
 * **SAMTOOLS**
 is the path to `samtools` executable file, otherwise it will be assumed that `samtools` is in the PATH (requires `samtools` version 1.14+).
