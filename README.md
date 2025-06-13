@@ -1,4 +1,4 @@
-![GitHub release](https://img.shields.io/github/v/release/Schahrjar/RNUscanner)
+[![GitHub release](https://img.shields.io/github/v/release/Schahrjar/RNUscanner)](https://github.com/Schahrjar/RNUscanner/releases/tag/v1.00)
 
 # RNUscanner
 A tool for RNU genes screening for any possible variants. Small nuclear RNA genes' mutations cause neurodevelopmental disorders, but they are not covered in exome enrichments. However, there is a chance of off-target reads which RNUscanner captures by getting BAM files and returning any mismatches, even the low quality ones, and outputs per-sample VCF files and optionally annotates known variants.
