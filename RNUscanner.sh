@@ -51,7 +51,7 @@ while [[ $# -gt 0 ]]; do
         --help)
             echo ""
             echo "Usage: $0 --gene-list <BED_FILE> --bam-list <BAM_LIST> --reference <REFERENCE_FASTA> [--variant-annotation <VARIANT_VCF>] [--output-dir <OUTPUT_DIR>] [--samtools-path <SAMTOOLS>] [--bcftools-path <BCFTOOLS>]"
-            echo -e "\nRNUscanner\tversion 1.00\t2025-06-11"
+            echo -e "\nRNUscanner\tversion 1.01\tupdated 2025-06-16"
             echo ""
             echo "Arguments:"
             echo "  --gene-list          BED file with regions of interest (e.g., RNU-loci.bed)"
@@ -207,6 +207,7 @@ while read -r BAM_PATH; do
         --fasta-ref "$REFERENCE_FASTA" \
         --regions-file "$BED_FILE" \
         --count-orphans \
+        --min-ireads 0 \
         --min-BQ 0 \
         -a AD,DP \
         --threads 4 \
