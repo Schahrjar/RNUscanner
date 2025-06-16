@@ -1,4 +1,4 @@
-[![GitHub release](https://img.shields.io/github/v/release/Schahrjar/RNUscanner)](https://github.com/Schahrjar/RNUscanner/releases/tag/v1.00)
+[![GitHub release](https://img.shields.io/github/v/release/Schahrjar/RNUscanner)](https://github.com/Schahrjar/RNUscanner/releases/latest)
 
 # RNUscanner
 The tool screens for any mismatches at a given low-sequence depth region.
