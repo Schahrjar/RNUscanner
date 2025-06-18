@@ -1,11 +1,12 @@
 [![GitHub release](https://img.shields.io/github/v/release/Schahrjar/RNUscanner)](https://github.com/Schahrjar/RNUscanner/releases/latest)
 
 # RNUscanner
-The tool screens for any mismatches at a given low-sequence depth region.
+The tool screens for any mismatches in sequence reads at a given genomic region.
 
-Small nuclear RNA genes' mutations cause neurodevelopmental disorders, but they are not covered in exome enrichments. RNUscanner captures off-target reads by getting BAM files and returning any variants, even the low quality ones, and optionally annotates known variants.
+Small nuclear RNA genes' mutations cause neurodevelopmental disorders, but they are not covered in exome enrichments. RNUscanner captures off-target reads from BAM files and returns VCF files if any variant is detected, even the low quality ones, and optionally annotates known variants.
 
-*The goal is to benefit the most from a huge amount of exome data, as many genetic patients have nothing availabe except an exome data, awaiting for diagnosis.*
+> [!NOTE]
+> *The goal is to benefit the most from a huge amount of exome data, as many genetic patients have nothing availabe except an exome data, awaiting for diagnosis.*
 
 ## 🔧 Features
 - Mainly for RNU genes, but applicable for any regions of interest
@@ -34,11 +35,11 @@ Then run RNUscanner:
 ```
 It scans dozens of exomes per minute on a regular machine.
 
-To quickly screen results for samples harbouring known pathogenic variants (assuming that VCF annotation is enabled; explained below) users could then run:
-
-```bash
-grep -i "Pathogenic" -r RNUscanner_out/*.vcf
-```
+> [!TIP]
+> To quickly list samples harbouring known pathogenic variants (assuming that VCF annotation is enabled; explained below) users can then run:
+> ```bash
+> grep -i "Pathogenic" -r RNUscanner_out/*.vcf
+> ```
 
 Good luck with your screening!
 
@@ -77,7 +78,10 @@ is a list of known variants in VCF format to annotate detected variants. Annotat
 chr12	120291839	rs2499959771	T	TA	.	PASS	GENE=RNU4-2;SIGNIFICANCE=Pathogenic
 chr15	65304715	.	C	G	.	PASS	GENE=RNU5B-1;SIGNIFICANCE=LikelyPathogenic
 ```
-It is encouraged to keep the VCF information and header lines as the same. Information of chromosomes which their variants are added to the VCF should be added to the VCF information line (e.g. add `##contig=<ID=chr11,length=135086622,dbSNP_version=157>` if putting RNU2-2 variants in). For a complete list of clinical RNU genes' variants, users could use RNUscanner `example_data/RNU-clinical-variants.vcf` file (based on hg38).
+Information of chromosomes which their variants are added to the VCF should be added to the VCF information line (e.g. add `##contig=<ID=chr11,length=135086622,dbSNP_version=157>` if putting RNU2-2 variants in). For a complete list of clinical RNU genes' variants, users could use RNUscanner `example_data/RNU-clinical-variants.vcf` file (based on hg38).
+
+> [!WARNING]
+> It is encouraged to keep the VCF information and header lines as explained to avoid annotation failure.
 
 * **OUTPUT_DIR**
 is the directory name where outputs will be saved, with the `RNUscanner_out` as its default. The directory will be created if it doesn't exist.
@@ -90,6 +94,4 @@ is the path to `bcftools` executable file, otherwise it will be assumed that `bc
 
 ## 📜 Citation
 
-This tool is released prior to our manuscript submission to assist researchers and clinicians in their diagnostics. You may contact [Shahryar Alavi](https://schahrjar.github.io/) if you use RNUscanner for your publication.
-
-MIT License | Copyright &copy; 2025 Shahryar Alavi
+This tool is released prior to our manuscript submission to assist researchers and clinicians in their diagnostics. You may contact [Shahryar Alavi](https://schahrjar.github.io/) if you use RNUscanner in your publication.
