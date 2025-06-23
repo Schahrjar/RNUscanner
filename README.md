@@ -1,4 +1,5 @@
 [![GitHub release](https://img.shields.io/github/v/release/Schahrjar/RNUscanner)](https://github.com/Schahrjar/RNUscanner/releases/latest)
+[![last commit](https://img.shields.io/github/last-commit/Schahrjar/RNUscanner)](https://github.com/Schahrjar/RNUscanner/commits/main)
 
 # RNUscanner
 The tool screens for any mismatches in sequence reads at a given genomic region.
@@ -6,7 +7,7 @@ The tool screens for any mismatches in sequence reads at a given genomic region.
 Small nuclear RNA genes' mutations cause neurodevelopmental disorders, but they are not covered in exome enrichments. RNUscanner captures off-target reads from BAM files and returns VCF files if any variant is detected, even the low quality ones, and optionally annotates known variants.
 
 > [!NOTE]
-> *The goal is to benefit the most from a huge amount of exome data, as many genetic patients have nothing availabe except an exome data, awaiting for diagnosis.*
+> *The goal is to benefit the most from a huge amount of exome data, as many genetic patients have nothing available except an exome data, awaiting for diagnosis.*
 
 ## 🔧 Features
 - Mainly for RNU genes, but applicable for any regions of interest
