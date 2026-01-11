@@ -1,5 +1,6 @@
 [![GitHub release](https://img.shields.io/github/v/release/Schahrjar/RNUscanner)](https://github.com/Schahrjar/RNUscanner/releases/latest)
 [![last commit](https://img.shields.io/github/last-commit/Schahrjar/RNUscanner)](https://github.com/Schahrjar/RNUscanner/commits/main)
+[![Downloads](https://img.shields.io/github/downloads/Schahrjar/RNUscanner/total?style=flat-square)](https://github.com/Schahrjar/RNUscanner/releases)
 
 # RNUscanner
 The tool screens for any mismatches in sequence reads at a given genomic region.
